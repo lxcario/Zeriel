@@ -156,7 +156,7 @@ Property-based tests (one per design property, marked optional with `*`) are pla
     - **Property 16: Lyric scheduling drops each line once, in order, at its timestamp**
     - **Validates: Requirements 6.3, 10.2**
 
-  - [-] 6.3 Implement the Round state machine
+  - [x] 6.3 Implement the Round state machine
     - Implement `lobby → resolving → ready/resolve_failed → playing → scoring` with `playing` reachable only from `ready`, start rejected as not-ready otherwise, scored-start prevented when audio is unresolved, and full finalization of the Round result before notifying clients to show the Scorecard
     - _Requirements: 10.1, 10.3, 10.4, 10.5, 10.6, 17.4_
 
@@ -275,7 +275,7 @@ Property-based tests (one per design property, marked optional with `*`) are pla
     - _Requirements: 11.4, 11.5_
 
 - [ ] 13. Single-player host and fixed-timestep loop
-  - [~] 13.1 Implement the fixed-timestep loop and LocalGameHost
+  - [x] 13.1 Implement the fixed-timestep loop and LocalGameHost
     - Drive `GameCore` with a `requestAnimationFrame` accumulator at a ~33.3ms step decoupled from render rate, render with interpolation `alpha`, and have the `LocalGameHost` run the scheduler, round lifecycle, Audio_Player, and Renderer fully in-browser with no network
     - _Requirements: 14.2, 14.6, 15.1, 15.2_
 
@@ -284,7 +284,7 @@ Property-based tests (one per design property, marked optional with `*`) are pla
     - _Requirements: 15.1, 15.2_
 
 - [ ] 14. Single-player UI shell and premium surfaces
-  - [~] 14.1 Implement the React UI shell and wire single-player end-to-end
+  - [x] 14.1 Implement the React UI shell and wire single-player end-to-end
     - Build routing and the Premium_Entry_Surfaces (Landing_Page, Lobby) with clean dark layout, refined typography, semantic headings, labeled controls, body-text contrast ≥ 4.5:1, and the Reduce_Motion_Mode toggle; host the `<canvas>` during a Round; wire Song_Picker → resolvers → LocalGameHost → Renderer → Scorecard into a complete single-player flow
     - _Requirements: 13.4, 13.5, 15.1, 18.1, 18.2_
 
@@ -292,7 +292,7 @@ Property-based tests (one per design property, marked optional with `*`) are pla
     - Audit premium-surface styling, absence of Spotify branding, body-text contrast ≥ 4.5:1, semantic headings/labels, and ScrollReveal usage restrictions plus the gsap dependency
     - _Requirements: 13.4, 13.5, 18.1, 18.2, 18.5, 19.3, 19.4, 19.7_
 
-- [~] 15. Checkpoint - Single-player complete
+- [x] 15. Checkpoint - Single-player complete
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 16. Game_Server: Room Manager and join links
@@ -328,7 +328,7 @@ Property-based tests (one per design property, marked optional with `*`) are pla
     - **Property 2: Join-link round trip**
     - **Validates: Requirements 1.2**
 
-  - [~] 16.9 Implement the authoritative tick loop and State Broadcaster
+  - [x] 16.9 Implement the authoritative tick loop and State Broadcaster
     - Run the authoritative `GameCore` on a fixed ~30Hz server tick driving the scheduler and round lifecycle; broadcast Rope_Letter positions, lock states, cursor presence, and provisional scores at ≥15Hz, and send a full authoritative snapshot to any client joining a Round in progress
     - _Requirements: 2.3, 2.4, 9.3, 14.6, 16.1, 16.3_
 
@@ -341,7 +341,7 @@ Property-based tests (one per design property, marked optional with `*`) are pla
     - **Property 38: Clock-offset estimation aligns timelines**
     - **Validates: Requirements 16.5**
 
-  - [~] 17.3 Implement the Net Client protocol, prediction decision, and reconciliation
+  - [x] 17.3 Implement the Net Client protocol, prediction decision, and reconciliation
     - (De)serialize the message protocol (`join`/`cursor`/`grab`/`release`/`startRound`; `welcome`/`roster`/`snapshot`/`grabResult`/`roundState`); apply client-side prediction to a grab iff the target is not visibly locked by another player; on each snapshot overwrite authoritative fields, re-apply pending local inputs, and snap contradicted grabs to authoritative state
     - _Requirements: 8.5, 8.6, 8.7, 14.4, 14.5, 16.2, 16.4_
 
@@ -353,7 +353,7 @@ Property-based tests (one per design property, marked optional with `*`) are pla
     - **Property 24: Reconciliation makes the client match the authoritative state**
     - **Validates: Requirements 8.7, 14.5, 16.2, 16.4**
 
-  - [~] 17.6 Implement the RemoteGameHost
+  - [x] 17.6 Implement the RemoteGameHost
     - Connect over WebSocket, keep a prediction `GameCore` for owned letters, drive non-owned letters from interpolated authoritative snapshots, and present the same host interface to the Renderer as the LocalGameHost
     - _Requirements: 16.1, 16.2_
 
@@ -362,7 +362,7 @@ Property-based tests (one per design property, marked optional with `*`) are pla
     - _Requirements: 1.3, 2.3, 2.4, 14.6, 16.1, 16.3_
 
 - [ ] 18. Multiplayer layering and mode equivalence
-  - [~] 18.1 Wire the multiplayer layer onto single-player
+  - [x] 18.1 Wire the multiplayer layer onto single-player
     - Switch the UI shell between LocalGameHost and RemoteGameHost so Room presence, Cursor sharing, and Ownership_Locks layer on top of the existing single-player gameplay without altering ordering/scoring; fall back to Single_Player_Mode when multiplayer is unavailable
     - _Requirements: 15.2, 15.4, 16.1_
 
@@ -371,7 +371,7 @@ Property-based tests (one per design property, marked optional with `*`) are pla
     - **Validates: Requirements 9.7, 15.3, 15.4**
     - Run the identical arrangement through the LocalGameHost and a RemoteGameHost-backed authoritative `GameCore` and assert equal scores
 
-- [~] 19. Final checkpoint - Ensure all tests pass
+- [x] 19. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

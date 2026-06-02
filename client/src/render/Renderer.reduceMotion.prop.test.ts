@@ -209,15 +209,21 @@ const vec2Arb: fc.Arbitrary<Vec2> = fc.record({
 
 /** A letter with bounded finite current/previous (aligned length) + seed. */
 const letterArb: fc.Arbitrary<LetterView> = fc.integer({ min: 1, max: 4 }).chain((n) =>
-  fc.record({
-    id: fc.string(),
-    glyph: fc.string({ minLength: 1, maxLength: 5 }),
-    current: fc.array(vec2Arb, { minLength: n, maxLength: n }),
-    // Sometimes omit `previous` (no interpolation), sometimes provide an aligned
-    // one (interpolation path) — both exercise the same gameplay invariant.
-    previous: fc.option(fc.array(vec2Arb, { minLength: n, maxLength: n }), { nil: undefined }),
-    spawnJitterSeed: fc.integer(),
-  }),
+  fc
+    .record({
+      id: fc.string(),
+      glyph: fc.string({ minLength: 1, maxLength: 5 }),
+      current: fc.array(vec2Arb, { minLength: n, maxLength: n }),
+      // Sometimes omit `previous` (no interpolation), sometimes provide an aligned
+      // one (interpolation path) — both exercise the same gameplay invariant.
+      previous: fc.option(fc.array(vec2Arb, { minLength: n, maxLength: n }), { nil: undefined }),
+      spawnJitterSeed: fc.integer(),
+    })
+    .map(({ previous, ...rest }): LetterView =>
+      // Under exactOptionalPropertyTypes, only attach `previous` when defined so
+      // the object matches LetterView's `previous?: readonly Vec2[]` exactly.
+      previous === undefined ? rest : { ...rest, previous },
+    ),
 );
 
 const stateArb: fc.Arbitrary<RenderState> = fc.record({

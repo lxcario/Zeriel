@@ -90,21 +90,20 @@ describe('copyImageToClipboard — copy control (Req 11.4)', () => {
     expect(ok).toBe(true);
     // write called exactly once, with an array holding our single ClipboardItem.
     expect(write).toHaveBeenCalledTimes(1);
-    const items = write.mock.calls[0][0] as unknown[];
+    const items = write.mock.calls[0]![0] as unknown[];
     expect(Array.isArray(items)).toBe(true);
     expect(items).toHaveLength(1);
     expect(items[0]).toBeInstanceOf(FakeClipboardItem);
     // The ctor received an object keyed by the blob's MIME type → the blob.
     expect(ctorArgs).toHaveLength(1);
-    expect(Object.keys(ctorArgs[0])).toEqual(['image/png']);
-    expect(ctorArgs[0]['image/png']).toBe(blob);
+    expect(Object.keys(ctorArgs[0]!)).toEqual(['image/png']);
+    expect(ctorArgs[0]!['image/png']).toBe(blob);
   });
 
   it('resolves false (no throw) when the clipboard is unavailable', async () => {
     const blob = pngBlob();
     // No injected clipboard; the global fallback is absent → graceful false.
     const ok = await copyImageToClipboard(blob, {
-      clipboard: undefined,
       clipboardItemCtor: class {
         constructor(_items: Record<string, Blob>) {}
       } as unknown as typeof ClipboardItem,
@@ -115,11 +114,10 @@ describe('copyImageToClipboard — copy control (Req 11.4)', () => {
   it('resolves false when the ClipboardItem constructor is unavailable', async () => {
     const blob = pngBlob();
     const write = vi.fn().mockResolvedValue(undefined);
-    // Clipboard present, but no ClipboardItem ctor (injected undefined, global
-    // stubbed absent) → graceful false without attempting a write.
+    // Clipboard present, but no ClipboardItem ctor (omitted, global stubbed
+    // absent) → graceful false without attempting a write.
     const ok = await copyImageToClipboard(blob, {
       clipboard: { write },
-      clipboardItemCtor: undefined,
     });
     expect(ok).toBe(false);
     expect(write).not.toHaveBeenCalled();
@@ -151,7 +149,7 @@ describe('downloadImage — download control (Req 11.4)', () => {
     expect(createObjectURL).toHaveBeenCalledWith(blob);
 
     // The appended node is our anchor, carrying the filename + object URL.
-    const appended = appendSpy.mock.calls[0][0] as HTMLAnchorElement;
+    const appended = appendSpy.mock.calls[0]![0] as HTMLAnchorElement;
     expect(appended).toBeInstanceOf(HTMLAnchorElement);
     expect(appended.download).toBe('scorecard.png');
     expect(appended.getAttribute('href')).toBe(objectUrl);
@@ -161,7 +159,7 @@ describe('downloadImage — download control (Req 11.4)', () => {
 
     // Cleanup: the same anchor is removed and the object URL is revoked.
     expect(removeSpy).toHaveBeenCalledTimes(1);
-    expect(removeSpy.mock.calls[0][0]).toBe(appended);
+    expect(removeSpy.mock.calls[0]![0]).toBe(appended);
     expect(revokeObjectURL).toHaveBeenCalledWith(objectUrl);
     expect(document.body.contains(appended)).toBe(false);
   });
@@ -172,10 +170,7 @@ describe('downloadImage — download control (Req 11.4)', () => {
     vi.stubGlobal('document', undefined);
     vi.stubGlobal('URL', undefined);
     try {
-      const result = downloadImage(blob, 'scorecard.png', {
-        doc: undefined,
-        createObjectURL: undefined,
-      });
+      const result = downloadImage(blob, 'scorecard.png', {});
       expect(result).toBe(false);
     } finally {
       vi.unstubAllGlobals();

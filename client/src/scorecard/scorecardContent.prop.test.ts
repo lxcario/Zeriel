@@ -146,13 +146,13 @@ describe('Property 33: Scorecard content reflects the round result (Req 11.1)', 
             key === UNOWNED_CONTRIBUTOR_KEY ? UNOWNED_CONTRIBUTOR_LABEL : key;
           const matching = content.rows.filter((r) => r.player === expectedLabel);
           expect(matching).toHaveLength(1);
-          expect(matching[0].contribution).toBe(result.contributions[key]);
+          expect(matching[0]!.contribution).toBe(result.contributions[key]);
         }
 
         // SORT ORDER: contribution descending, ties broken by player ascending.
         for (let i = 1; i < content.rows.length; i++) {
-          const prev = content.rows[i - 1];
-          const cur = content.rows[i];
+          const prev = content.rows[i - 1]!;
+          const cur = content.rows[i]!;
           expect(prev.contribution).toBeGreaterThanOrEqual(cur.contribution);
           if (prev.contribution === cur.contribution) {
             expect(prev.player <= cur.player).toBe(true);
