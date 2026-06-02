@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/*
+ * Tailwind CSS v4 uses a CSS-first configuration. Premium_Entry_Surface theme
+ * tokens (dark palette, refined typography) are added in later UI tasks via the
+ * `@theme` directive. This file is scaffolding only.
+ */

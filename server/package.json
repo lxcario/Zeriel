@@ -1,0 +1,22 @@
+{
+  "name": "@glitch/server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Authoritative Node WebSocket Game_Server (ws). Shares @glitch/core gameplay logic.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@glitch/core": "0.1.0",
+    "ws": "8.21.0"
+  },
+  "devDependencies": {
+    "@types/ws": "8.18.1",
+    "tsx": "4.22.4"
+  }
+}

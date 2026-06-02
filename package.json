@@ -1,0 +1,29 @@
+{
+  "name": "glitch",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Glitch — live imperfect karaoke. Real-time multiplayer browser party game.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "core",
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @glitch/client",
+    "dev:server": "npm run dev --workspace @glitch/server",
+    "build": "npm run build --workspace @glitch/server && npm run build --workspace @glitch/client",
+    "typecheck": "npm run typecheck --workspace @glitch/core && npm run typecheck --workspace @glitch/server && npm run typecheck --workspace @glitch/client",
+    "test": "vitest --run"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "fast-check": "4.8.0",
+    "jsdom": "29.1.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  }
+}
