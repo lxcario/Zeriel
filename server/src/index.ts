@@ -9,7 +9,7 @@
 import { CORE_PACKAGE } from '@glitch/core';
 
 export function describeServer(): string {
-  return `Glitch Game_Server (scaffold) using ${CORE_PACKAGE}`;
+  return `Zeriel Game_Server (scaffold) using ${CORE_PACKAGE}`;
 }
 
 // Only log when executed directly (not when imported by tests).

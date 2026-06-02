@@ -120,7 +120,7 @@ export function Scorecard({ result }: ScorecardProps) {
     >
       <header className="mb-5">
         <p className="text-sm font-medium uppercase tracking-wider text-neutral-400">
-          Glitch — Round Scorecard
+          Zeriel — Round Scorecard
         </p>
         <h2
           id="scorecard-heading"

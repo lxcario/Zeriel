@@ -2,7 +2,7 @@
   "name": "@glitch/client",
   "version": "0.1.0",
   "private": true,
-  "description": "Glitch browser client — Vite + React + TypeScript app shell. Shares @glitch/core.",
+  "description": "Zeriel browser client — Vite + React + TypeScript app shell. Shares @glitch/core.",
   "type": "module",
   "scripts": {
     "dev": "vite",

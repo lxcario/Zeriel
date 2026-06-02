@@ -13,7 +13,7 @@ describe('client scaffold', () => {
       createRoot(container).render(<App />);
     });
 
-    expect(container.textContent).toContain('Glitch');
+    expect(container.textContent).toContain('Zeriel');
     container.remove();
   });
 });

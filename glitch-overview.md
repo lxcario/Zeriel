@@ -1,8 +1,8 @@
-# Glitch — Live Imperfect Karaoke
+# Zeriel — Live Imperfect Karaoke
 
 ## What it is
 
-Glitch is a free, open-source, real-time multiplayer browser party game. Think
+Zeriel is a free, open-source, real-time multiplayer browser party game. Think
 "karaoke meets a chaotic word puzzle."
 
 A song plays, and its time-synced lyrics fall from the top of the screen as
