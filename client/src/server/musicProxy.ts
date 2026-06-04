@@ -599,3 +599,120 @@ export async function handleAudio(
   });
   nodeStream.pipe(res);
 }
+
+// ---------------------------------------------------------------------------
+// Lyrics proxy (LRCLIB) — routes the request server-side so ISP/firewall blocks
+// on the client's network don't prevent lyrics loading.
+// ---------------------------------------------------------------------------
+
+/** Default LRCLIB base (same as the client `lyricsService.ts` uses). */
+const LRCLIB_BASE = 'https://lrclib.net';
+
+/**
+ * Handle `GET /api/music/lyrics?track=&artist=&album=&duration=` by proxying
+ * the request to LRCLIB server-side. This avoids any ISP-level block on
+ * `lrclib.net` that the browser would hit when calling it directly.
+ *
+ * Returns the LRCLIB JSON response verbatim (the client's `parseLrc` handles
+ * the `syncedLyrics` field). On failure returns a JSON error so the client's
+ * existing error-mapping produces the right UI.
+ */
+export async function handleLyrics(
+  params: URLSearchParams,
+  res: ServerResponse,
+): Promise<void> {
+  const track = params.get('track');
+  const artist = params.get('artist');
+  const duration = params.get('duration');
+
+  if (!track || !artist) {
+    sendJson(res, 400, { error: 'track and artist params required' });
+    return;
+  }
+
+  // Build the exact LRCLIB /api/get URL the client would have called directly.
+  const lrclibUrl = new URL(`${LRCLIB_BASE}/api/get`);
+  lrclibUrl.searchParams.set('track_name', track);
+  lrclibUrl.searchParams.set('artist_name', artist);
+  lrclibUrl.searchParams.set('album_name', params.get('album') ?? '');
+  if (duration) lrclibUrl.searchParams.set('duration', duration);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8_000);
+
+  try {
+    const upstream = await fetch(lrclibUrl.toString(), {
+      signal: controller.signal,
+      headers: { Accept: 'application/json', 'User-Agent': BROWSER_UA },
+    });
+    clearTimeout(timer);
+
+    if (upstream.status === 404) {
+      // LRCLIB 404 = no match. Try the search fallback.
+      const fallbackResult = await lrclibSearchFallback(track, artist, duration);
+      if (fallbackResult) {
+        sendJson(res, 200, fallbackResult);
+      } else {
+        sendJson(res, 404, { syncedLyrics: null });
+      }
+      return;
+    }
+
+    if (!upstream.ok) {
+      sendJson(res, 502, { error: 'lrclib_error', status: upstream.status });
+      return;
+    }
+
+    const data = await upstream.json();
+    sendJson(res, 200, data);
+  } catch {
+    clearTimeout(timer);
+    sendJson(res, 503, { error: 'lrclib_unreachable' });
+  }
+}
+
+/**
+ * LRCLIB `/api/search` fallback when the exact signature misses (404).
+ * Returns the first record with non-null `syncedLyrics`, or `null`.
+ */
+async function lrclibSearchFallback(
+  track: string,
+  artist: string,
+  duration: string | null,
+): Promise<Record<string, unknown> | null> {
+  const searchUrl = new URL(`${LRCLIB_BASE}/api/search`);
+  searchUrl.searchParams.set('q', `${track} ${artist}`.trim());
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8_000);
+
+  try {
+    const upstream = await fetch(searchUrl.toString(), {
+      signal: controller.signal,
+      headers: { Accept: 'application/json', 'User-Agent': BROWSER_UA },
+    });
+    clearTimeout(timer);
+    if (!upstream.ok) return null;
+
+    const candidates = (await upstream.json()) as Array<Record<string, unknown>>;
+    if (!Array.isArray(candidates)) return null;
+
+    // Prefer a candidate within ±2s of the expected duration.
+    const durationNum = duration ? Number.parseFloat(duration) : 0;
+    const withSynced = candidates.filter(
+      (c) => typeof c.syncedLyrics === 'string' && (c.syncedLyrics as string).length > 0,
+    );
+    if (withSynced.length === 0) return null;
+
+    if (durationNum > 0) {
+      const match = withSynced.find(
+        (c) => typeof c.duration === 'number' && Math.abs((c.duration as number) - durationNum) <= 2,
+      );
+      if (match) return match;
+    }
+    return withSynced[0] ?? null;
+  } catch {
+    clearTimeout(timer);
+    return null;
+  }
+}

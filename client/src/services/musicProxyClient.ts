@@ -19,8 +19,11 @@
  */
 
 import type { TrackCandidate } from '@glitch/core';
+import type { TrackSignature } from '@glitch/core';
 import type { SearchBackend, SongSearchResult } from '../songPicker/searchBackend.ts';
 import type { ResolveResult } from './audioResolver.ts';
+import type { LyricsResult } from './lyricsService.ts';
+import { parseLrc } from './lyricsService.ts';
 
 /** One result row from `GET /api/music/search`. */
 interface ProxyCandidate {
@@ -120,5 +123,53 @@ export async function resolveAudioViaProxy(
     };
   } catch {
     return { ok: false, reason: 'all_instances_failed', attempts: [] };
+  }
+}
+
+/**
+ * Fetch synced lyrics through the same-origin proxy (`/api/music/lyrics`),
+ * bypassing any ISP/firewall block on `lrclib.net`. The server fetches LRCLIB
+ * on our behalf and returns its JSON. We parse the `syncedLyrics` field with
+ * the existing LRC parser.
+ *
+ * Matches the `fetchSyncedFn` signature `resolveRoundAssets` expects.
+ *
+ * @param sig The track signature (track/artist/album/duration).
+ * @param baseUrl Proxy base, defaults to `/api/music`.
+ * @param fetchImpl Injected fetch (tests); defaults to global `fetch`.
+ */
+export async function fetchLyricsViaProxy(
+  sig: TrackSignature,
+  baseUrl: string = DEFAULT_BASE,
+  fetchImpl: typeof fetch = fetch,
+): Promise<LyricsResult> {
+  const params = new URLSearchParams();
+  params.set('track', sig.trackName);
+  params.set('artist', sig.artistName);
+  params.set('album', sig.albumName);
+  params.set('duration', String(sig.durationSec));
+
+  try {
+    const res = await fetchImpl(`${baseUrl}/lyrics?${params.toString()}`);
+
+    if (res.status === 404) {
+      return { ok: false, reason: 'no_lyrics' };
+    }
+    if (!res.ok) {
+      return { ok: false, reason: 'retrieval_failed' };
+    }
+
+    const data = (await res.json()) as { syncedLyrics?: string | null };
+    if (typeof data.syncedLyrics !== 'string' || data.syncedLyrics.length === 0) {
+      return { ok: false, reason: 'no_lyrics' };
+    }
+
+    const lines = parseLrc(data.syncedLyrics);
+    if (lines.length === 0) {
+      return { ok: false, reason: 'no_lyrics' };
+    }
+    return { ok: true, lines };
+  } catch {
+    return { ok: false, reason: 'retrieval_failed' };
   }
 }

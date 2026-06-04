@@ -30,7 +30,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { RoundResult } from '@glitch/core';
 import { getEffectiveReduceMotion } from './theme/index.ts';
-import { createProxySearchBackend, resolveAudioViaProxy } from './services/musicProxyClient.ts';
+import { createProxySearchBackend, resolveAudioViaProxy, fetchLyricsViaProxy } from './services/musicProxyClient.ts';
 import {
   LandingPage,
   Lobby,
@@ -58,10 +58,13 @@ export default function App() {
   const searchBackend = useMemo(() => createProxySearchBackend(), []);
 
   // Resolve audio through the same-origin proxy too: the returned stream URL is
-  // same-origin (CORS-clean for the Web Audio AnalyserNode). Lyrics still go to
-  // LRCLIB directly (it sends permissive CORS headers).
+  // same-origin (CORS-clean for the Web Audio AnalyserNode). Lyrics also go
+  // through the proxy to bypass ISP-level blocks on lrclib.net.
   const resolveDeps = useMemo<ResolveRoundDeps>(
-    () => ({ resolveAudioFn: (videoId) => resolveAudioViaProxy(videoId) }),
+    () => ({
+      resolveAudioFn: (videoId) => resolveAudioViaProxy(videoId),
+      fetchSyncedFn: (sig) => fetchLyricsViaProxy(sig),
+    }),
     [],
   );
 

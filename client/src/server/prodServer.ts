@@ -21,7 +21,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join, normalize, resolve, extname } from 'node:path';
-import { handleSearch, handleAudio } from './musicProxy.ts';
+import { handleSearch, handleAudio, handleLyrics } from './musicProxy.ts';
 import { readEnvKey } from './readEnv.ts';
 
 /** Absolute path to the built client (`client/dist`). */
@@ -110,6 +110,10 @@ function createHandler(youtubeApiKey: string | undefined) {
     }
     if (parsed.pathname === '/api/music/audio') {
       void handleAudio(parsed.searchParams.get('id'), req, res);
+      return;
+    }
+    if (parsed.pathname === '/api/music/lyrics') {
+      void handleLyrics(parsed.searchParams, res);
       return;
     }
     if (parsed.pathname.startsWith('/api/')) {

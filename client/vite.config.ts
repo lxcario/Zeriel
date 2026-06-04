@@ -1,7 +1,7 @@
 import { defineConfig, type Connect, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { handleSearch, handleAudio } from './src/server/musicProxy.ts';
+import { handleSearch, handleAudio, handleLyrics } from './src/server/musicProxy.ts';
 import { readEnvKey } from './src/server/readEnv.ts';
 
 /**
@@ -28,6 +28,10 @@ function musicProxyPlugin(youtubeApiKey: string | undefined): Plugin {
     }
     if (parsed.pathname === '/api/music/audio') {
       void handleAudio(parsed.searchParams.get('id'), req, res);
+      return;
+    }
+    if (parsed.pathname === '/api/music/lyrics') {
+      void handleLyrics(parsed.searchParams, res);
       return;
     }
     next();
