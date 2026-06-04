@@ -20,8 +20,8 @@ export {
   resolveRoundAssets,
   type RoundPlan,
   type ResolveRoundResult,
-  type ResolveRoundDeps,
 } from './resolveRound.ts';
+export type { ResolveRoundDeps } from './resolveRound.ts';
 
 export {
   SINGLE_PLAYER_SESSION,

@@ -18,6 +18,7 @@
  * accounts (Requirement 1.6). See `wsServer.ts` for the full security note.
  */
 import { CORE_PACKAGE, type GameConfig } from '@glitch/core';
+import { pathToFileURL } from 'node:url';
 import { startWsGameServer, DEFAULT_BIND_HOST } from './net/index.js';
 
 // Re-export the server subsystems so consumers/tests import from one surface.
@@ -51,7 +52,11 @@ function defaultGameConfig(): GameConfig {
 
 // Only bind a listening socket when executed directly (NOT when imported by
 // tests). Reads PORT/HOST from the environment; HOST defaults to loopback.
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Compared via pathToFileURL so the guard is correct on Windows too.
+const invokedDirectly =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+if (invokedDirectly) {
   const port = Number.parseInt(process.env.PORT ?? '8080', 10);
   const host = process.env.HOST ?? DEFAULT_BIND_HOST;
   // eslint-disable-next-line no-console

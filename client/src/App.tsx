@@ -30,14 +30,14 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { RoundResult } from '@glitch/core';
 import { getEffectiveReduceMotion } from './theme/index.ts';
-import { createPipedSearchBackend } from './songPicker/index.ts';
+import { createProxySearchBackend, resolveAudioViaProxy } from './services/musicProxyClient.ts';
 import {
   LandingPage,
   Lobby,
   RoundScreen,
   ScorecardScreen,
-  DEFAULT_PIPED_INSTANCES,
   type RoundPlan,
+  type ResolveRoundDeps,
 } from './shell/index.ts';
 
 /** The top-level screen route (mirrors the Round State Machine surfaces). */
@@ -52,9 +52,16 @@ export default function App() {
   const [reduceMotion, setReduceMotion] = useState<boolean>(() => getEffectiveReduceMotion());
   const [screen, setScreen] = useState<Screen>({ name: 'landing' });
 
-  // The Piped-backed Song_Picker search backend, created once (first instance).
-  const searchBackend = useMemo(
-    () => createPipedSearchBackend({ instance: DEFAULT_PIPED_INSTANCES[0]! }),
+  // The same-origin proxy-backed Song_Picker search backend, created once.
+  // Routing search through our own server sidesteps the browser CORS wall and
+  // uses the reliable YouTube Data API path on the server when a key is set.
+  const searchBackend = useMemo(() => createProxySearchBackend(), []);
+
+  // Resolve audio through the same-origin proxy too: the returned stream URL is
+  // same-origin (CORS-clean for the Web Audio AnalyserNode). Lyrics still go to
+  // LRCLIB directly (it sends permissive CORS headers).
+  const resolveDeps = useMemo<ResolveRoundDeps>(
+    () => ({ resolveAudioFn: (videoId) => resolveAudioViaProxy(videoId) }),
     [],
   );
 
@@ -81,6 +88,7 @@ export default function App() {
           reduceMotion={reduceMotion}
           onReduceMotionChange={setReduceMotion}
           onStartRound={handleStartRound}
+          resolveDeps={resolveDeps}
         />
       );
 

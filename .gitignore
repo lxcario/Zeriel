@@ -22,6 +22,10 @@ Thumbs.db
 .idea/
 *.local
 
+# Scratch / probe files
+_*.mjs
+_*.txt
+
 # Env
 .env
 .env.*
