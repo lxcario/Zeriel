@@ -609,6 +609,65 @@ export async function handleAudio(
 const LRCLIB_BASE = 'https://lrclib.net';
 
 /**
+ * Clean a messy YouTube-style title + channel into a best-guess (track, artist)
+ * pair for LRCLIB. YouTube titles carry noise LRCLIB does not store — "(Official
+ * Video)", "[Lyrics]", "(TM)", VEVO channel suffixes, "Artist - Title" prefixes
+ * — which makes the exact `/api/get` lookup miss even when lyrics exist. This
+ * normalizes the common shapes so the lookup (and the search fallback) hit.
+ *
+ * Order matters: literal "(TM)"/"™"/"(R)" are stripped FIRST so a following
+ * noise-parenthetical regex can match an outer group that contained them.
+ */
+export function cleanTrackMeta(
+  rawTitle: string,
+  rawArtist: string,
+): { track: string; artist: string } {
+  const NOISE =
+    'official|lyric|lyrics|audio|video|hd|hq|4k|mv|m\\/v|visualizer|visualiser|live|remaster(?:ed)?|explicit|clean|color coded|sub|subtitulado|legendado';
+
+  let title = (rawTitle ?? '').toString();
+  // 1) Drop trademark/registered marks (literal and unicode) so nested groups
+  //    like "(The Official ... World Cup(TM) Song)" become matchable.
+  title = title.replace(/\(tm\)|\(r\)|[\u2122\u00ae]/gi, '');
+  // 2) Remove bracketed/parenthetical segments that contain a noise keyword.
+  const noiseParen = new RegExp(`\\((?:[^)]*\\b(?:${NOISE})\\b[^)]*)\\)`, 'gi');
+  const noiseBracket = new RegExp(`\\[(?:[^\\]]*\\b(?:${NOISE})\\b[^\\]]*)\\]`, 'gi');
+  title = title.replace(noiseParen, '').replace(noiseBracket, '');
+
+  // 3) Split a leading "Artist - Title" (en/em dash or hyphen).
+  let artist = (rawArtist ?? '').toString();
+  const dash = title.split(/\s+[-–—]\s+/);
+  let track = title;
+  if (dash.length >= 2 && (dash[0] ?? '').trim().length > 0) {
+    artist = (dash[0] ?? '').trim();
+    track = dash.slice(1).join(' - ').trim();
+  }
+
+  // 4) Normalize the artist: drop VEVO / "- Topic" suffixes and "feat." tails.
+  artist = artist
+    .replace(/vevo$/i, '')
+    .replace(/\s*-\s*topic$/i, '')
+    .replace(/\s*\bofficial\b\s*$/i, '')
+    .trim();
+
+  // 5) Tidy the track: drop a trailing "feat./ft." clause, collapse whitespace,
+  //    and trim stray dangling punctuation left by removed groups.
+  track = track
+    .replace(/\s*[([]\s*(?:feat|ft)\.?[^)\]]*[)\]]/gi, '')
+    .replace(/\s*\b(?:feat|ft)\.?\s+.*$/i, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/[\s,(\[-]+$/g, '')
+    .replace(/^[\s,)\]-]+/g, '')
+    .trim();
+
+  // Never return empty fields — fall back to the raw values if cleaning emptied
+  // them (better a messy query than no query).
+  if (track.length === 0) track = (rawTitle ?? '').toString().trim();
+  if (artist.length === 0) artist = (rawArtist ?? '').toString().trim();
+  return { track, artist };
+}
+
+/**
  * Handle `GET /api/music/lyrics?track=&artist=&album=&duration=` by proxying
  * the request to LRCLIB server-side. This avoids any ISP-level block on
  * `lrclib.net` that the browser would hit when calling it directly.
@@ -621,59 +680,116 @@ export async function handleLyrics(
   params: URLSearchParams,
   res: ServerResponse,
 ): Promise<void> {
-  const track = params.get('track');
-  const artist = params.get('artist');
+  const rawTrack = params.get('track');
+  const rawArtist = params.get('artist');
   const duration = params.get('duration');
 
-  if (!track || !artist) {
+  if (!rawTrack || !rawArtist) {
     sendJson(res, 400, { error: 'track and artist params required' });
     return;
   }
 
-  // Build the exact LRCLIB /api/get URL the client would have called directly.
-  const lrclibUrl = new URL(`${LRCLIB_BASE}/api/get`);
-  lrclibUrl.searchParams.set('track_name', track);
-  lrclibUrl.searchParams.set('artist_name', artist);
-  lrclibUrl.searchParams.set('album_name', params.get('album') ?? '');
-  if (duration) lrclibUrl.searchParams.set('duration', duration);
+  // Clean the messy YouTube-style title/channel into LRCLIB-friendly metadata.
+  // The raw values are kept as a fallback so a clean miss can retry raw.
+  const { track, artist } = cleanTrackMeta(rawTrack, rawArtist);
+
+  // Try the exact signature with the CLEANED metadata first.
+  const cleanGet = await lrclibGet(track, artist, duration);
+  if (cleanGet.kind === 'ok') {
+    sendJson(res, 200, cleanGet.record);
+    return;
+  }
+  if (cleanGet.kind === 'error') {
+    sendJson(res, 502, { error: 'lrclib_error' });
+    return;
+  }
+
+  // 404 on the cleaned signature → search fallback with cleaned metadata.
+  const cleanSearch = await lrclibSearchFallback(track, artist, duration);
+  if (cleanSearch) {
+    sendJson(res, 200, cleanSearch);
+    return;
+  }
+
+  // Last resort: a raw search (in case cleaning removed something meaningful).
+  if (rawTrack !== track || rawArtist !== artist) {
+    const rawSearch = await lrclibSearchFallback(rawTrack, rawArtist, duration);
+    if (rawSearch) {
+      sendJson(res, 200, rawSearch);
+      return;
+    }
+  }
+
+  sendJson(res, 404, { syncedLyrics: null });
+}
+
+/** Outcome of a single LRCLIB `/api/get` request. */
+type LrclibGetResult =
+  | { kind: 'ok'; record: Record<string, unknown> }
+  | { kind: 'miss' } // 404 / no usable synced lyrics — caller should try search
+  | { kind: 'error' }; // timeout/network/non-404 HTTP
+
+/**
+ * Request the exact LRCLIB `/api/get` signature. Returns `ok` with the record
+ * only when it carries non-empty `syncedLyrics`; a 404 or a 200 without synced
+ * lyrics is a `miss` (try the search fallback); transport failures are `error`.
+ */
+async function lrclibGet(
+  track: string,
+  artist: string,
+  duration: string | null,
+): Promise<LrclibGetResult> {
+  const url = new URL(`${LRCLIB_BASE}/api/get`);
+  url.searchParams.set('track_name', track);
+  url.searchParams.set('artist_name', artist);
+  url.searchParams.set('album_name', '');
+  if (duration) url.searchParams.set('duration', duration);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8_000);
-
   try {
-    const upstream = await fetch(lrclibUrl.toString(), {
+    const upstream = await fetch(url.toString(), {
       signal: controller.signal,
       headers: { Accept: 'application/json', 'User-Agent': BROWSER_UA },
     });
     clearTimeout(timer);
-
-    if (upstream.status === 404) {
-      // LRCLIB 404 = no match. Try the search fallback.
-      const fallbackResult = await lrclibSearchFallback(track, artist, duration);
-      if (fallbackResult) {
-        sendJson(res, 200, fallbackResult);
-      } else {
-        sendJson(res, 404, { syncedLyrics: null });
-      }
-      return;
-    }
-
-    if (!upstream.ok) {
-      sendJson(res, 502, { error: 'lrclib_error', status: upstream.status });
-      return;
-    }
-
-    const data = await upstream.json();
-    sendJson(res, 200, data);
+    if (upstream.status === 404) return { kind: 'miss' };
+    if (!upstream.ok) return { kind: 'error' };
+    const record = (await upstream.json()) as Record<string, unknown>;
+    const synced = record?.syncedLyrics;
+    if (typeof synced === 'string' && synced.length > 0) return { kind: 'ok', record };
+    return { kind: 'miss' };
   } catch {
     clearTimeout(timer);
-    sendJson(res, 503, { error: 'lrclib_unreachable' });
+    return { kind: 'error' };
   }
+}
+
+/** Lowercased alphanumeric token set of a string (for relevance overlap). */
+function tokenSet(s: string): Set<string> {
+  const out = new Set<string>();
+  for (const tok of (s ?? '').toLowerCase().split(/[^a-z0-9]+/)) {
+    if (tok.length > 0) out.add(tok);
+  }
+  return out;
+}
+
+/** Count of shared tokens between two token sets. */
+function overlap(a: Set<string>, b: Set<string>): number {
+  let n = 0;
+  for (const t of a) if (b.has(t)) n++;
+  return n;
 }
 
 /**
  * LRCLIB `/api/search` fallback when the exact signature misses (404).
- * Returns the first record with non-null `syncedLyrics`, or `null`.
+ *
+ * Among candidates that have synced lyrics, picks the BEST by relevance:
+ *   - title/artist token overlap with the query (so "Waka Waka" doesn't match a
+ *     random remix), then
+ *   - duration within ±2s when available, then
+ *   - original result order.
+ * Returns the chosen record, or `null` when nothing usable is found.
  */
 async function lrclibSearchFallback(
   track: string,
@@ -697,20 +813,36 @@ async function lrclibSearchFallback(
     const candidates = (await upstream.json()) as Array<Record<string, unknown>>;
     if (!Array.isArray(candidates)) return null;
 
-    // Prefer a candidate within ±2s of the expected duration.
-    const durationNum = duration ? Number.parseFloat(duration) : 0;
     const withSynced = candidates.filter(
       (c) => typeof c.syncedLyrics === 'string' && (c.syncedLyrics as string).length > 0,
     );
     if (withSynced.length === 0) return null;
 
-    if (durationNum > 0) {
-      const match = withSynced.find(
-        (c) => typeof c.duration === 'number' && Math.abs((c.duration as number) - durationNum) <= 2,
-      );
-      if (match) return match;
+    const durationNum = duration ? Number.parseFloat(duration) : 0;
+    const wantTrack = tokenSet(track);
+    const wantArtist = tokenSet(artist);
+
+    let best: Record<string, unknown> | null = null;
+    let bestScore = -Infinity;
+    for (let i = 0; i < withSynced.length; i++) {
+      const c = withSynced[i]!;
+      const tName = typeof c.trackName === 'string' ? c.trackName : '';
+      const aName = typeof c.artistName === 'string' ? c.artistName : '';
+      // Token-overlap relevance (track weighted higher than artist).
+      let score =
+        overlap(wantTrack, tokenSet(tName)) * 3 + overlap(wantArtist, tokenSet(aName)) * 2;
+      // Duration agreement bonus (±2s like LRCLIB's own matching).
+      if (durationNum > 0 && typeof c.duration === 'number' && Math.abs(c.duration - durationNum) <= 2) {
+        score += 2;
+      }
+      // Stable tie-break toward earlier results.
+      score -= i * 0.001;
+      if (score > bestScore) {
+        bestScore = score;
+        best = c;
+      }
     }
-    return withSynced[0] ?? null;
+    return best ?? withSynced[0] ?? null;
   } catch {
     clearTimeout(timer);
     return null;

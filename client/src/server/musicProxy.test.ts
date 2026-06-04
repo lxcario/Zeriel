@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { isValidVideoId, handleAudio, handleSearch } from './musicProxy.ts';
+import { isValidVideoId, handleAudio, handleSearch, cleanTrackMeta } from './musicProxy.ts';
 
 /**
  * Minimal fake {@link ServerResponse} capturing status, headers, and body so the
@@ -84,5 +84,46 @@ describe('handleSearch guards', () => {
     expect(res._status).toBe(400);
     expect(res._body).toContain('Query required');
     expect(res._headers['cache-control']).toBe('no-store');
+  });
+});
+
+describe('cleanTrackMeta (YouTube title/channel -> LRCLIB metadata)', () => {
+  it('strips "Artist - Title (Official Video)" and VEVO channel noise', () => {
+    expect(cleanTrackMeta('The Weeknd - Blinding Lights (Official Video)', 'TheWeekndVEVO')).toEqual({
+      track: 'Blinding Lights',
+      artist: 'The Weeknd',
+    });
+  });
+
+  it('handles nested trademark + multi-parenthetical noise', () => {
+    const { track, artist } = cleanTrackMeta(
+      'Shakira - Waka Waka (This Time for Africa) (The Official 2010 FIFA World Cup(TM) Song)',
+      'shakiraVEVO',
+    );
+    expect(artist).toBe('Shakira');
+    // The song-proper survives; the "Official ... Song" noise group is removed.
+    expect(track.toLowerCase()).toContain('waka waka');
+    expect(track.toLowerCase()).not.toContain('official');
+    expect(track).not.toMatch(/\(tm\)|™/i);
+  });
+
+  it('drops a feat. clause and "- Topic" channel suffix', () => {
+    expect(cleanTrackMeta('Some Song (feat. Other Artist)', 'Main Artist - Topic')).toEqual({
+      track: 'Some Song',
+      artist: 'Main Artist',
+    });
+  });
+
+  it('keeps a plain "Artist - Title" with no noise', () => {
+    expect(cleanTrackMeta('Coldplay - Viva La Vida', 'Coldplay')).toEqual({
+      track: 'Viva La Vida',
+      artist: 'Coldplay',
+    });
+  });
+
+  it('falls back to raw values rather than returning empty fields', () => {
+    const { track, artist } = cleanTrackMeta('(Official Video)', 'ChannelVEVO');
+    expect(track.length).toBeGreaterThan(0);
+    expect(artist).toBe('Channel');
   });
 });
