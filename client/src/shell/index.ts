@@ -12,6 +12,7 @@ export { LandingPage, type LandingPageProps } from './LandingPage.tsx';
 export { Lobby, type LobbyProps } from './Lobby.tsx';
 export { XmbStage, type XmbStageProps } from './XmbStage.tsx';
 export { XmbBar, type XmbBarProps, type XmbCategory } from './XmbBar.tsx';
+export { FallingLetters, type FallingLettersProps } from './FallingLetters.tsx';
 export { RoundScreen, type RoundScreenProps } from './RoundScreen.tsx';
 export { RoundCanvas, type RoundCanvasProps, type RoundCanvasDeps } from './RoundCanvas.tsx';
 export { ScorecardScreen, type ScorecardScreenProps } from './ScorecardScreen.tsx';

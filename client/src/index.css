@@ -252,3 +252,82 @@
   .xmb-stream { animation: none !important; background-position: 50% 0; }
 }
 .xmb--still .xmb-stream { animation: none !important; background-position: 50% 0; }
+
+/* ---------------------------------------------------------------------------
+ * Landing hero — falling ransom-note letter tiles (the game's signature look
+ * teased on the premium surface). Decorative only; frozen under reduce-motion.
+ * ------------------------------------------------------------------------- */
+
+.zl-hero {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Layer holding the drifting tiles behind the hero copy. */
+.zl-falling {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* One ransom-note tile: white paper scrap, dark ink letter, slight tilt. */
+.zl-tile {
+  position: absolute;
+  top: -12%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.4rem;
+  height: 2.4rem;
+  padding: 0 0.5rem;
+  border-radius: 4px;
+  background: #f4efe1;
+  color: #141210;
+  font-family: ui-monospace, "Courier New", monospace;
+  font-weight: 700;
+  font-size: 1.15rem;
+  border: 2px solid #141210;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: zl-fall linear infinite;
+}
+
+@keyframes zl-fall {
+  0%   { transform: translateY(0) rotate(var(--rot, -6deg)); opacity: 0; }
+  8%   { opacity: 0.92; }
+  88%  { opacity: 0.92; }
+  100% { transform: translateY(115vh) rotate(calc(var(--rot, -6deg) * -1)); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zl-tile { animation: none !important; opacity: 0.5; top: auto; bottom: 6%; }
+}
+.xmb--still .zl-tile { animation: none !important; opacity: 0.45; }
+
+/* Mock "now playing" preview panel in the hero. */
+.zl-preview-bar {
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(150, 190, 255, 0.18);
+  overflow: hidden;
+}
+.zl-preview-bar > span {
+  display: block;
+  height: 100%;
+  width: 38%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #4a8fe7, #8cc3ff);
+  animation: zl-progress 6s ease-in-out infinite;
+}
+@keyframes zl-progress {
+  0% { width: 8%; }
+  50% { width: 72%; }
+  100% { width: 8%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zl-preview-bar > span { animation: none !important; width: 45%; }
+}
+.xmb--still .zl-preview-bar > span { animation: none !important; width: 45%; }
