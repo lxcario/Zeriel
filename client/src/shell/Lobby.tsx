@@ -26,6 +26,7 @@ import { SongPicker } from '../songPicker/index.ts';
 import type { SearchBackend, ModeContext } from '../songPicker/index.ts';
 import { mapExternalError } from '../services/errorMessages.ts';
 import { ReduceMotionToggle } from './ReduceMotionToggle.tsx';
+import XmbStage from './XmbStage.tsx';
 import {
   resolveRoundAssets,
   type ResolveRoundDeps,
@@ -128,17 +129,17 @@ export function Lobby({
     phase.kind === 'failed' ? mapExternalError(phase.failure) : null;
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100">
+    <XmbStage reduceMotion={reduceMotion} className="text-neutral-100">
       <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-16">
         <header className="flex items-start justify-between gap-6">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-indigo-300">
+            <p className="text-sm font-medium uppercase tracking-[0.3em] text-sky-300">
               Zeriel
             </p>
-            <h1 className="mt-1 text-4xl font-bold tracking-tight text-neutral-50">
+            <h1 className="xmb-title mt-1 text-4xl font-bold tracking-tight text-white">
               Lobby
             </h1>
-            <p className="mt-2 text-base text-neutral-300">
+            <p className="mt-2 text-base text-sky-100/80">
               Pick a track and start your single-player round.
             </p>
           </div>
@@ -147,7 +148,7 @@ export function Lobby({
         {/* Accessibility: Reduce_Motion_Mode toggle on a premium surface (18.2). */}
         <section
           aria-labelledby="settings-heading"
-          className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-5"
+          className="xmb-panel p-5"
         >
           <h2 id="settings-heading" className="sr-only">
             Accessibility settings
@@ -231,12 +232,12 @@ export function Lobby({
         {phase.kind === 'ready' && (
           <section
             aria-labelledby="ready-heading"
-            className="rounded-2xl border border-indigo-500/50 bg-indigo-500/10 p-5"
+            className="xmb-panel p-5 ring-1 ring-sky-300/40"
           >
-            <h2 id="ready-heading" className="text-base font-semibold text-indigo-100">
+            <h2 id="ready-heading" className="text-base font-semibold text-sky-100">
               Ready to play
             </h2>
-            <p className="mt-1 text-sm text-indigo-100/90">
+            <p className="mt-1 text-sm text-sky-100/90">
               <span className="font-medium">{phase.plan.candidate.title}</span> by{' '}
               {phase.plan.candidate.artist}
               {phase.plan.lyricsFree ? ' — playing without synced lyrics.' : '.'}
@@ -244,14 +245,14 @@ export function Lobby({
             <button
               type="button"
               onClick={handleStart}
-              className="mt-4 inline-flex items-center justify-center rounded-lg bg-indigo-500 px-6 py-2.5 text-base font-semibold text-white transition-colors hover:bg-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/60"
+              className="xmb-button mt-4 inline-flex items-center justify-center rounded-lg px-6 py-2.5 text-base font-semibold text-white transition-transform hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-sky-300/70"
             >
               Start round
             </button>
           </section>
         )}
       </div>
-    </main>
+    </XmbStage>
   );
 }
 

@@ -10,6 +10,7 @@
 
 import type { RoundResult } from '@glitch/core';
 import { Scorecard } from '../scorecard/index.ts';
+import XmbStage from './XmbStage.tsx';
 
 /** Props for {@link ScorecardScreen}. */
 export interface ScorecardScreenProps {
@@ -17,18 +18,20 @@ export interface ScorecardScreenProps {
   result: RoundResult;
   /** Start a new Round from the Lobby (Requirement 10.6). */
   onPlayAgain: () => void;
+  /** Effective Reduce_Motion_Mode (freezes the XMB backdrop, Requirement 13.1). */
+  reduceMotion?: boolean;
 }
 
 /** The end-of-round surface: heading, the Scorecard, and a play-again control. */
-export function ScorecardScreen({ result, onPlayAgain }: ScorecardScreenProps) {
+export function ScorecardScreen({ result, onPlayAgain, reduceMotion = false }: ScorecardScreenProps) {
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100">
+    <XmbStage reduceMotion={reduceMotion} className="text-neutral-100">
       <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-16">
         <header className="text-center">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-indigo-300">
+          <p className="text-sm font-medium uppercase tracking-[0.3em] text-sky-300">
             Zeriel
           </p>
-          <h1 className="mt-1 text-4xl font-bold tracking-tight text-neutral-50">
+          <h1 className="xmb-title mt-1 text-4xl font-bold tracking-tight text-white">
             Round complete
           </h1>
         </header>
@@ -39,13 +42,13 @@ export function ScorecardScreen({ result, onPlayAgain }: ScorecardScreenProps) {
           <button
             type="button"
             onClick={onPlayAgain}
-            className="inline-flex items-center justify-center rounded-full bg-indigo-500 px-8 py-3 text-base font-semibold text-white transition-colors hover:bg-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/60"
+            className="xmb-button inline-flex items-center justify-center rounded-full px-8 py-3 text-base font-semibold text-white transition-transform hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-sky-300/70"
           >
             Play again
           </button>
         </div>
       </div>
-    </main>
+    </XmbStage>
   );
 }
 

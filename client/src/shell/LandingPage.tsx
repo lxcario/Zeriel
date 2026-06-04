@@ -16,6 +16,7 @@
  */
 
 import HeadlineReveal from './HeadlineReveal.tsx';
+import XmbStage from './XmbStage.tsx';
 
 /** Props for {@link LandingPage}. */
 export interface LandingPageProps {
@@ -32,21 +33,21 @@ export interface LandingPageProps {
  */
 export function LandingPage({ onStart, reduceMotion }: LandingPageProps) {
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100">
+    <XmbStage reduceMotion={reduceMotion} className="text-neutral-100">
       <section
         aria-labelledby="landing-title"
         className="mx-auto flex min-h-screen max-w-4xl flex-col items-center justify-center px-6 py-20 text-center"
       >
-        <p className="mb-4 text-sm font-medium uppercase tracking-[0.2em] text-indigo-300">
+        <p className="mb-4 text-sm font-medium uppercase tracking-[0.3em] text-sky-300">
           Live imperfect karaoke
         </p>
         <h1
           id="landing-title"
-          className="text-6xl font-bold tracking-tight text-neutral-50 sm:text-7xl"
+          className="xmb-title text-6xl font-bold tracking-tight text-white sm:text-7xl"
         >
           Zeriel
         </h1>
-        <div className="mt-6 max-w-2xl text-lg leading-relaxed text-neutral-200">
+        <div className="mt-6 max-w-2xl text-lg leading-relaxed text-sky-100/90">
           <HeadlineReveal
             reduceMotion={reduceMotion}
             baseOpacity={0.15}
@@ -61,12 +62,12 @@ export function LandingPage({ onStart, reduceMotion }: LandingPageProps) {
           <button
             type="button"
             onClick={onStart}
-            className="inline-flex items-center justify-center rounded-full bg-indigo-500 px-8 py-3.5 text-base font-semibold text-white transition-colors hover:bg-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/60"
+            className="xmb-button inline-flex items-center justify-center rounded-full px-8 py-3.5 text-base font-semibold text-white transition-transform hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-sky-300/70"
           >
             Start playing
           </button>
         </div>
-        <p className="mt-4 text-sm text-neutral-300">
+        <p className="mt-4 text-sm text-sky-200/70">
           No account, no install. Jump straight into a single-player round.
         </p>
       </section>
@@ -77,7 +78,7 @@ export function LandingPage({ onStart, reduceMotion }: LandingPageProps) {
       >
         <h2
           id="how-it-works-title"
-          className="mb-10 text-center text-3xl font-semibold tracking-tight text-neutral-50"
+          className="xmb-title mb-10 text-center text-3xl font-semibold tracking-tight text-white"
         >
           How it works
         </h2>
@@ -99,20 +100,17 @@ export function LandingPage({ onStart, reduceMotion }: LandingPageProps) {
               body: 'Order the words, get scored, and export a shareable card.',
             },
           ].map((item) => (
-            <li
-              key={item.step}
-              className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-6"
-            >
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-indigo-500/20 text-base font-semibold text-indigo-200">
+            <li key={item.step} className="xmb-panel p-6">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-sky-400/25 text-base font-semibold text-sky-100 ring-1 ring-sky-300/40">
                 {item.step}
               </span>
-              <h3 className="mt-4 text-lg font-semibold text-neutral-50">{item.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-neutral-300">{item.body}</p>
+              <h3 className="mt-4 text-lg font-semibold text-white">{item.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-sky-100/80">{item.body}</p>
             </li>
           ))}
         </ol>
       </section>
-    </main>
+    </XmbStage>
   );
 }
 

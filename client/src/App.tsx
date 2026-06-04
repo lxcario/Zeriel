@@ -105,6 +105,12 @@ export default function App() {
       );
 
     case 'scorecard':
-      return <ScorecardScreen result={screen.result} onPlayAgain={handlePlayAgain} />;
+      return (
+        <ScorecardScreen
+          result={screen.result}
+          onPlayAgain={handlePlayAgain}
+          reduceMotion={reduceMotion}
+        />
+      );
   }
 }

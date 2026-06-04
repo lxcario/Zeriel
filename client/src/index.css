@@ -1,7 +1,186 @@
 @import "tailwindcss";
 
 /*
- * Tailwind CSS v4 uses a CSS-first configuration. Premium_Entry_Surface theme
- * tokens (dark palette, refined typography) are added in later UI tasks via the
- * `@theme` directive. This file is scaffolding only.
+ * Zeriel premium entry surfaces — PSP / XMB-inspired theme.
+ *
+ * The pre-round surfaces (Landing, Lobby, Scorecard) use a PlayStation Portable
+ * XrossMediaBar-flavored look: a deep blue→black vertical gradient, slow
+ * flowing "wave" ribbons of light, and glossy translucent panels. This is a
+ * restyle of the PREMIUM art direction only — the in-round gameplay play area
+ * keeps its handmade VHS/ransom-note aesthetic (the two never bleed; the
+ * renderer is untouched by this CSS).
+ *
+ * All motion here is suppressed when the user prefers reduced motion — both via
+ * the OS-level media query AND an explicit `.xmb--still` class the React shell
+ * adds when the in-app Reduce Motion toggle is on.
  */
+
+:root {
+  --xmb-bg-top: #1b3a6b;       /* PSP signature blue */
+  --xmb-bg-mid: #0a1a33;
+  --xmb-bg-bottom: #04070d;    /* near-black */
+  --xmb-wave-1: rgba(120, 180, 255, 0.16);
+  --xmb-wave-2: rgba(80, 140, 230, 0.12);
+  --xmb-wave-3: rgba(180, 210, 255, 0.08);
+  --xmb-panel: rgba(12, 22, 42, 0.55);
+  --xmb-panel-border: rgba(150, 190, 255, 0.22);
+  --xmb-sheen: rgba(255, 255, 255, 0.06);
+}
+
+/* The full-bleed XMB stage: gradient base + animated wave layers behind content. */
+.xmb-stage {
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+  background:
+    radial-gradient(120% 80% at 50% -10%, var(--xmb-bg-top) 0%, var(--xmb-bg-mid) 45%, var(--xmb-bg-bottom) 100%);
+  overflow: hidden;
+}
+
+/* Two flowing wave ribbons (the XMB "aurora") rendered as skewed gradient bands. */
+.xmb-stage::before,
+.xmb-stage::after {
+  content: "";
+  position: absolute;
+  inset: -25% -40%;
+  z-index: -1;
+  background:
+    repeating-linear-gradient(
+      115deg,
+      transparent 0px,
+      var(--xmb-wave-1) 2px,
+      transparent 60px,
+      var(--xmb-wave-2) 120px,
+      transparent 200px
+    );
+  background-size: 200% 200%;
+  opacity: 0.7;
+  will-change: transform, background-position;
+  animation: xmb-drift 28s linear infinite;
+}
+
+.xmb-stage::after {
+  background:
+    repeating-linear-gradient(
+      65deg,
+      transparent 0px,
+      var(--xmb-wave-3) 3px,
+      transparent 90px,
+      var(--xmb-wave-1) 160px,
+      transparent 260px
+    );
+  background-size: 220% 220%;
+  opacity: 0.5;
+  animation: xmb-drift-2 41s linear infinite;
+}
+
+/* A soft moving highlight bar — the XMB cursor glow sweeping the backdrop. */
+.xmb-glow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 38%;
+  height: 30vh;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(60% 100% at 50% 50%, rgba(140, 190, 255, 0.18), transparent 70%);
+  filter: blur(8px);
+  will-change: transform, opacity;
+  animation: xmb-pulse 7s ease-in-out infinite;
+}
+
+@keyframes xmb-drift {
+  0%   { background-position: 0% 0%; transform: translate3d(0, 0, 0) skewY(-2deg); }
+  100% { background-position: 200% 100%; transform: translate3d(0, -3%, 0) skewY(-2deg); }
+}
+
+@keyframes xmb-drift-2 {
+  0%   { background-position: 100% 0%; transform: translate3d(0, 0, 0) skewY(3deg); }
+  100% { background-position: -120% 100%; transform: translate3d(0, 4%, 0) skewY(3deg); }
+}
+
+@keyframes xmb-pulse {
+  0%, 100% { opacity: 0.5; transform: translateY(0); }
+  50%      { opacity: 0.9; transform: translateY(-2%); }
+}
+
+/* Glossy translucent panel (XMB content tiles). */
+.xmb-panel {
+  position: relative;
+  background: var(--xmb-panel);
+  border: 1px solid var(--xmb-panel-border);
+  border-radius: 1rem;
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 var(--xmb-sheen);
+}
+
+/* Top sheen line across a panel (glassy reflection). */
+.xmb-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 40%;
+  border-radius: 1rem 1rem 0 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent);
+  pointer-events: none;
+}
+
+/* Primary XMB action button: glossy blue pill with a sweep highlight. */
+.xmb-button {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #4a8fe7 0%, #2f6fd0 50%, #2256ad 100%);
+  box-shadow:
+    0 6px 20px rgba(34, 86, 173, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.xmb-button::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: skewX(-20deg);
+  animation: xmb-sweep 4.5s ease-in-out infinite;
+}
+
+@keyframes xmb-sweep {
+  0%, 60% { left: -60%; }
+  100% { left: 140%; }
+}
+
+/* PSP-style title: tight tracking, soft blue glow. */
+.xmb-title {
+  text-shadow:
+    0 0 18px rgba(120, 180, 255, 0.45),
+    0 2px 4px rgba(0, 0, 0, 0.6);
+  letter-spacing: -0.02em;
+}
+
+/*
+ * Motion suppression. Honored both for the OS preference AND when the React
+ * shell sets `.xmb--still` from the in-app Reduce Motion toggle (Req 13.1/13.3).
+ */
+@media (prefers-reduced-motion: reduce) {
+  .xmb-stage::before,
+  .xmb-stage::after,
+  .xmb-glow,
+  .xmb-button::after {
+    animation: none !important;
+  }
+}
+
+.xmb--still .xmb-stage::before,
+.xmb--still .xmb-stage::after,
+.xmb--still .xmb-glow,
+.xmb--still .xmb-button::after,
+.xmb-stage.xmb--still::before,
+.xmb-stage.xmb--still::after {
+  animation: none !important;
+}

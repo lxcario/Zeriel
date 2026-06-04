@@ -209,6 +209,17 @@ const BASE_FONT_PX = 28;
 const GLYPH_BOX_PADDING_PX = 6;
 /** Number of low-frequency bins visualized by the audio-reactive accent layer. */
 const AUDIO_BAR_COUNT = 8;
+/**
+ * Maximum extra scale applied to the whole scene on a strong audio beat
+ * (Requirement 5.3 audio-reactive). At amplitude 1 the scene zooms to
+ * `1 + BEAT_ZOOM_MAX`. Suppressed entirely under Reduce_Motion_Mode (13.1) and
+ * when there is no AudioFrame (5.3). Applied as a GLOBAL canvas matrix around
+ * the frame — never as a per-letter transform — so per-letter gameplay
+ * positions (asserted by the renderer property tests) are unchanged.
+ */
+const BEAT_ZOOM_MAX = 0.06;
+/** Smoothing factor for the beat-zoom envelope (0..1; higher = snappier). */
+const BEAT_ZOOM_ATTACK = 0.35;
 
 // High-contrast handmade palette (Requirement 12.5: high-contrast treatment).
 const PAPER_BASE_COLOR = '#f4efe1';
@@ -383,6 +394,13 @@ export class CanvasRenderer implements Renderer {
   private readonly scratch: Vec2 = { x: 0, y: 0 };
   /** Monotonic frame counter driving per-frame jitter phase (decoration only). */
   private frame = 0;
+  /**
+   * Smoothed beat-zoom envelope in `[0, BEAT_ZOOM_MAX]`. Eased toward the
+   * current audio amplitude each frame so the scene "breathes" with the beat
+   * (Requirement 5.3). Reset to 0 and never advanced under reduce-motion or a
+   * null AudioFrame, so the zoom is fully suppressed in those cases (13.1/5.3).
+   */
+  private beatZoom = 0;
   private disposed = false;
 
   constructor(config: CanvasRendererConfig = {}) {
@@ -438,6 +456,21 @@ export class CanvasRenderer implements Renderer {
 
     ctx.clearRect(0, 0, this.width, this.height);
 
+    // Beat-zoom envelope (Requirement 5.3 audio-reactive). Only advances when an
+    // AudioFrame is present AND motion is allowed; otherwise it decays to 0 so
+    // the scene is never scaled under reduce-motion or a null frame (13.1/5.3).
+    const beatScale = this.updateBeatZoom(audio);
+    const zoomed = beatScale !== 1;
+    if (zoomed) {
+      // GLOBAL matrix: scale the whole scene about the canvas center. This is a
+      // canvas-transform effect only — it does NOT alter the per-letter
+      // `translate` positions the renderer property tests assert on.
+      const cx = this.width / 2;
+      const cy = this.height / 2;
+      ctx.save();
+      ctx.setTransform(beatScale, 0, 0, beatScale, cx - cx * beatScale, cy - cy * beatScale);
+    }
+
     // Paper-grain texture stamp (Requirement 12.2/12.4). Falls back to a flat
     // paper fill when no off-screen buffer is available (jsdom/fake).
     if (this.grainBuffer) {
@@ -467,6 +500,10 @@ export class CanvasRenderer implements Renderer {
       this.drawAudioReactive(ctx, state.bounds, audio);
     }
 
+    // Restore the identity transform before stamping scan-lines so the CRT
+    // overlay always covers the full canvas regardless of the beat-zoom.
+    if (zoomed) ctx.restore();
+
     // Scan-line texture stamp (Requirement 12.2). The vertical jitter is the
     // non-essential motion suppressed under reduce-motion (Requirement 13.1).
     if (this.scanlineBuffer) {
@@ -475,6 +512,28 @@ export class CanvasRenderer implements Renderer {
         : (hashUnit(this.frame, 9) * 2 - 1) * SCANLINE_JITTER_PX;
       ctx.drawImage(this.scanlineBuffer.image, 0, jitterY);
     }
+  }
+
+  /**
+   * Advance the smoothed {@link beatZoom} envelope toward the current audio
+   * amplitude and return the resulting whole-scene scale factor (>= 1).
+   *
+   * Returns exactly `1` (no zoom) when Reduce_Motion_Mode is on OR there is no
+   * AudioFrame, decaying the envelope back to 0 so the effect is fully
+   * suppressed (Requirements 13.1, 5.3). Otherwise eases the envelope toward
+   * `amplitude * BEAT_ZOOM_MAX` by {@link BEAT_ZOOM_ATTACK} and returns
+   * `1 + beatZoom`.
+   */
+  private updateBeatZoom(audio: AudioFrame | null): number {
+    if (this.reduceMotion || audio === null) {
+      // Decay to rest; never scale.
+      this.beatZoom += (0 - this.beatZoom) * BEAT_ZOOM_ATTACK;
+      if (this.beatZoom < 1e-4) this.beatZoom = 0;
+      return 1;
+    }
+    const target = clamp(audio.amplitude, 0, 1) * BEAT_ZOOM_MAX;
+    this.beatZoom += (target - this.beatZoom) * BEAT_ZOOM_ATTACK;
+    return 1 + this.beatZoom;
   }
 
   /** Release buffers/references; idempotent. */
