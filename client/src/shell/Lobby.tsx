@@ -27,6 +27,7 @@ import type { SearchBackend, ModeContext } from '../songPicker/index.ts';
 import { mapExternalError } from '../services/errorMessages.ts';
 import { ReduceMotionToggle } from './ReduceMotionToggle.tsx';
 import XmbStage from './XmbStage.tsx';
+import XmbBar, { type XmbCategory } from './XmbBar.tsx';
 import {
   resolveRoundAssets,
   type ResolveRoundDeps,
@@ -35,6 +36,14 @@ import {
 
 /** Single-player mode context — the lone Player always controls the picker (3.6). */
 const SINGLE_PLAYER_MODE: ModeContext = { mode: 'single' };
+
+/** Decorative XMB category strip shown atop the Lobby (PSP home-menu vibe). */
+const XMB_CATEGORIES: readonly XmbCategory[] = [
+  { id: 'music', icon: '♪', label: 'Music' },
+  { id: 'play', icon: '▶', label: 'Play' },
+  { id: 'room', icon: '⌂', label: 'Room' },
+  { id: 'settings', icon: '⚙', label: 'Settings' },
+];
 
 /** Phase of the Lobby's selection → resolve → ready sub-flow. */
 type ResolvePhase =
@@ -130,7 +139,10 @@ export function Lobby({
 
   return (
     <XmbStage reduceMotion={reduceMotion} className="text-neutral-100">
-      <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-16">
+      <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-12">
+        {/* XMB category strip — the PSP home-menu furniture. */}
+        <XmbBar categories={XMB_CATEGORIES} activeId="music" reduceMotion={reduceMotion} />
+
         <header className="flex items-start justify-between gap-6">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.3em] text-sky-300">
@@ -162,26 +174,27 @@ export function Lobby({
         {/* Resolution status + actionable error/ready states. */}
         {phase.kind === 'resolving' && (
           <section
-            className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-5"
+            className="xmb-panel p-5"
             role="status"
             aria-live="polite"
           >
-            <div className="flex items-center gap-3 text-neutral-200">
+            <div className="flex items-center gap-3 text-sky-100">
               <span
                 aria-hidden="true"
-                className="h-5 w-5 animate-spin rounded-full border-2 border-neutral-600 border-t-indigo-400"
+                className="h-5 w-5 animate-spin rounded-full border-2 border-sky-300/30 border-t-sky-300"
               />
               <span>
                 Resolving audio and lyrics for{' '}
-                <span className="font-medium text-neutral-50">{phase.candidate.title}</span>…
+                <span className="font-medium text-white">{phase.candidate.title}</span>…
               </span>
             </div>
+            <div className="xmb-stream mt-4" aria-hidden="true" />
           </section>
         )}
 
         {phase.kind === 'failed' && errorPresentation && (
           <section
-            className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5"
+            className="xmb-panel border border-red-400/40 p-5"
             role="alert"
           >
             <h2 className="text-base font-semibold text-red-100">
@@ -196,7 +209,7 @@ export function Lobby({
                       key={action.kind}
                       type="button"
                       onClick={handleRetry}
-                      className="inline-flex items-center justify-center rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+                      className="xmb-button inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-white transition-transform hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-sky-300/70"
                     >
                       {action.label}
                     </button>
@@ -208,7 +221,7 @@ export function Lobby({
                       key={action.kind}
                       type="button"
                       onClick={handleContinueLyricsFree}
-                      className="inline-flex items-center justify-center rounded-lg border border-neutral-600 bg-neutral-900 px-4 py-2 text-sm font-medium text-neutral-100 transition-colors hover:border-neutral-400 hover:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
+                      className="inline-flex items-center justify-center rounded-lg border border-sky-300/30 bg-[#0a1226]/60 px-4 py-2 text-sm font-medium text-sky-100 transition-colors hover:border-sky-300/60 hover:bg-sky-400/10 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
                     >
                       {action.label}
                     </button>
@@ -219,7 +232,7 @@ export function Lobby({
                     key={action.kind}
                     type="button"
                     onClick={handlePickDifferent}
-                    className="inline-flex items-center justify-center rounded-lg border border-neutral-600 bg-neutral-900 px-4 py-2 text-sm font-medium text-neutral-100 transition-colors hover:border-neutral-400 hover:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
+                    className="inline-flex items-center justify-center rounded-lg border border-sky-300/30 bg-[#0a1226]/60 px-4 py-2 text-sm font-medium text-sky-100 transition-colors hover:border-sky-300/60 hover:bg-sky-400/10 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
                   >
                     {action.label}
                   </button>

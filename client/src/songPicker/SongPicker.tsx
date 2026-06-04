@@ -119,16 +119,16 @@ export function SongPicker({ backend, mode, onSelect }: SongPickerProps) {
   return (
     <section
       aria-labelledby="song-picker-heading"
-      className="mx-auto w-full max-w-2xl rounded-2xl border border-neutral-800 bg-neutral-900/80 p-6 text-neutral-100 shadow-xl backdrop-blur"
+      className="xmb-panel mx-auto w-full max-w-2xl p-6 text-neutral-100"
     >
       <header className="mb-5">
         <h2
           id="song-picker-heading"
-          className="text-2xl font-semibold tracking-tight text-neutral-50"
+          className="xmb-title text-2xl font-semibold tracking-tight text-white"
         >
           Pick a song
         </h2>
-        <p className="mt-1 text-sm text-neutral-400">
+        <p className="mt-1 text-sm text-sky-200/70">
           Search for a track to queue up for the next round.
         </p>
       </header>
@@ -147,13 +147,13 @@ export function SongPicker({ backend, mode, onSelect }: SongPickerProps) {
           disabled={!canControl}
           aria-disabled={!canControl}
           onChange={(e) => setInputValue(e.target.value)}
-          className="flex-1 rounded-lg border border-neutral-700 bg-neutral-950 px-4 py-2.5 text-base text-neutral-100 placeholder:text-neutral-500 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex-1 rounded-lg border border-sky-300/25 bg-[#0a1226]/70 px-4 py-2.5 text-base text-white placeholder:text-sky-200/40 focus:border-sky-300/70 focus:outline-none focus:ring-2 focus:ring-sky-400/40 disabled:cursor-not-allowed disabled:opacity-60"
         />
         <button
           type="submit"
           disabled={submitDisabled}
           aria-disabled={submitDisabled}
-          className="inline-flex items-center justify-center rounded-lg bg-indigo-500 px-5 py-2.5 text-base font-medium text-white transition-colors hover:bg-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 disabled:cursor-not-allowed disabled:bg-neutral-700 disabled:text-neutral-400"
+          className="xmb-button inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-base font-medium text-white transition-transform hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-sky-300/70 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
         >
           {isSearching ? 'Searching…' : 'Search'}
         </button>
@@ -169,13 +169,13 @@ export function SongPicker({ backend, mode, onSelect }: SongPickerProps) {
       {/* Loading indicator while a search is in flight (Requirement 3.5). */}
       {isSearching && (
         <div
-          className="mt-4 flex items-center gap-2 text-sm text-neutral-300"
+          className="mt-4 flex items-center gap-2 text-sm text-sky-100/80"
           role="status"
           aria-live="polite"
         >
           <span
             aria-hidden="true"
-            className="h-4 w-4 animate-spin rounded-full border-2 border-neutral-600 border-t-indigo-400"
+            className="h-4 w-4 animate-spin rounded-full border-2 border-sky-300/30 border-t-sky-300"
           />
           <span>Searching for tracks…</span>
         </div>
@@ -183,14 +183,14 @@ export function SongPicker({ backend, mode, onSelect }: SongPickerProps) {
 
       {/* No-results message for a completed empty search (Requirement 3.4). */}
       {!isSearching && noResults && (
-        <p className="mt-4 text-sm text-neutral-300" role="status" aria-live="polite">
+        <p className="mt-4 text-sm text-sky-100/80" role="status" aria-live="polite">
           No results found{state.query ? ` for “${state.query}”` : ''}. Try a different search.
         </p>
       )}
 
       {/* Actionable error message for a failed search (Requirements 17.1, 17.5). */}
       {!isSearching && errorPresentation && (
-        <div className="mt-4 rounded-lg border border-red-500/40 bg-red-500/10 p-3" role="alert">
+        <div className="mt-4 rounded-lg border border-red-400/40 bg-red-500/10 p-3" role="alert">
           <p className="text-sm text-red-200">{errorPresentation.message}</p>
         </div>
       )}
@@ -211,27 +211,27 @@ export function SongPicker({ backend, mode, onSelect }: SongPickerProps) {
                   aria-pressed={isPending}
                   onClick={() => handleSelect(candidate)}
                   className={[
-                    'flex w-full items-center justify-between gap-4 rounded-lg border px-4 py-3 text-left transition-colors',
+                    'group flex w-full items-center justify-between gap-4 rounded-lg border px-4 py-3 text-left transition-all',
                     isPending
-                      ? 'border-indigo-400 bg-indigo-500/15'
-                      : 'border-neutral-800 bg-neutral-950/60 hover:border-neutral-600 hover:bg-neutral-800/60',
+                      ? 'border-sky-300/70 bg-sky-400/15 shadow-[0_0_18px_rgba(120,180,255,0.25)]'
+                      : 'border-sky-300/15 bg-[#0a1226]/50 hover:border-sky-300/45 hover:bg-sky-400/10 hover:translate-x-1',
                     'disabled:cursor-not-allowed disabled:opacity-60',
                   ].join(' ')}
                 >
                   <span className="min-w-0">
-                    <span className="block truncate font-medium text-neutral-50">
+                    <span className="block truncate font-medium text-white">
                       {candidate.title}
                     </span>
-                    <span className="block truncate text-sm text-neutral-400">
+                    <span className="block truncate text-sm text-sky-200/60">
                       {candidate.artist}
                     </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-3">
                     {duration && (
-                      <span className="text-sm tabular-nums text-neutral-500">{duration}</span>
+                      <span className="text-sm tabular-nums text-sky-200/50">{duration}</span>
                     )}
                     {isPending && (
-                      <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-200">
+                      <span className="rounded-full bg-sky-400/25 px-2 py-0.5 text-xs font-medium text-sky-100 ring-1 ring-sky-300/40">
                         Selected
                       </span>
                     )}
@@ -245,11 +245,11 @@ export function SongPicker({ backend, mode, onSelect }: SongPickerProps) {
 
       {/* Pending-track confirmation (Requirement 3.2). */}
       {pendingTrack && (
-        <p className="mt-4 text-sm text-neutral-300" aria-live="polite">
+        <p className="mt-4 text-sm text-sky-100/80" aria-live="polite">
           Pending track:{' '}
-          <span className="font-medium text-neutral-100">{pendingTrack.title}</span>
+          <span className="font-medium text-white">{pendingTrack.title}</span>
           {' — '}
-          <span className="text-neutral-400">{pendingTrack.artist}</span>
+          <span className="text-sky-200/60">{pendingTrack.artist}</span>
         </p>
       )}
     </section>

@@ -184,3 +184,71 @@
 .xmb-stage.xmb--still::after {
   animation: none !important;
 }
+
+/* XMB category strip — the horizontal row of icon tiles at the top of a menu. */
+.xmb-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.xmb-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(180deg, rgba(120, 180, 255, 0.14), rgba(12, 22, 42, 0.6));
+  border: 1px solid rgba(150, 190, 255, 0.22);
+  color: rgba(220, 235, 255, 0.85);
+  font-size: 1.35rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.xmb-icon[data-active="true"] {
+  background: linear-gradient(180deg, rgba(140, 195, 255, 0.4), rgba(40, 90, 180, 0.5));
+  box-shadow:
+    0 0 22px rgba(120, 180, 255, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transform: translateY(-3px) scale(1.06);
+  color: #fff;
+}
+
+/* Subtle floating idle bob for the active XMB icon (suppressed when still). */
+.xmb-icon[data-active="true"]:not(.xmb--no-bob) {
+  animation: xmb-bob 3.2s ease-in-out infinite;
+}
+
+@keyframes xmb-bob {
+  0%, 100% { transform: translateY(-3px) scale(1.06); }
+  50%      { transform: translateY(-6px) scale(1.06); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xmb-icon[data-active="true"] { animation: none !important; }
+}
+.xmb--still .xmb-icon[data-active="true"] { animation: none !important; }
+
+/* A thin animated "now loading" data stream bar (PSP loading vibe). */
+.xmb-stream {
+  height: 2px;
+  width: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent, rgba(140, 190, 255, 0.8), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: xmb-stream-move 1.4s linear infinite;
+}
+
+@keyframes xmb-stream-move {
+  0%   { background-position: -40% 0; }
+  100% { background-position: 140% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xmb-stream { animation: none !important; background-position: 50% 0; }
+}
+.xmb--still .xmb-stream { animation: none !important; background-position: 50% 0; }
