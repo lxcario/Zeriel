@@ -1,7 +1,14 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { isValidVideoId, handleAudio, handleSearch, cleanTrackMeta } from './musicProxy.ts';
+import {
+  isValidVideoId,
+  handleAudio,
+  handleSearch,
+  cleanTrackMeta,
+  rankMusicCandidates,
+  type MusicCandidate,
+} from './musicProxy.ts';
 
 /**
  * Minimal fake {@link ServerResponse} capturing status, headers, and body so the
@@ -125,5 +132,67 @@ describe('cleanTrackMeta (YouTube title/channel -> LRCLIB metadata)', () => {
     const { track, artist } = cleanTrackMeta('(Official Video)', 'ChannelVEVO');
     expect(track.length).toBeGreaterThan(0);
     expect(artist).toBe('Channel');
+  });
+});
+
+describe('rankMusicCandidates (music-relevance filter + ranking)', () => {
+  const mk = (videoId: string, title: string, artist: string, durationSec = 200): MusicCandidate => ({
+    videoId,
+    title,
+    artist,
+    durationSec,
+  });
+
+  it('excludes reactions, interviews, tutorials, and hour-long loops', () => {
+    const list = [
+      mk('a', 'Artist - Song (Official Video)', 'ArtistVEVO'),
+      mk('b', 'Song REACTION!! omg', 'Some Reactor'),
+      mk('c', 'Artist Interview about Song', 'TalkShow'),
+      mk('d', 'How to play Song on guitar (tutorial)', 'GuitarGuy'),
+      mk('e', 'Song - 1 hour loop', 'Loops', 3600),
+    ];
+    const out = rankMusicCandidates(list, 'Artist Song');
+    const ids = out.map((c) => c.videoId);
+    expect(ids).toContain('a');
+    expect(ids).not.toContain('b');
+    expect(ids).not.toContain('c');
+    expect(ids).not.toContain('d');
+    expect(ids).not.toContain('e');
+  });
+
+  it('ranks the official/VEVO track above a cover/remix', () => {
+    const list = [
+      mk('cover', 'Song (Acoustic Cover)', 'Coverband'),
+      mk('official', 'Artist - Song (Official Music Video)', 'ArtistVEVO'),
+      mk('remix', 'Song (DJ Remix)', 'RemixChannel'),
+    ];
+    const out = rankMusicCandidates(list, 'Artist Song');
+    expect(out[0]!.videoId).toBe('official');
+  });
+
+  it('drops too-short clips and too-long videos when duration is known', () => {
+    const list = [
+      mk('short', 'Artist - Song teaser', 'ArtistVEVO', 20),
+      mk('ok', 'Artist - Song (Official Audio)', 'ArtistVEVO', 210),
+      mk('long', 'Artist - Song extended', 'ArtistVEVO', 60 * 60),
+    ];
+    const out = rankMusicCandidates(list, 'Artist Song');
+    const ids = out.map((c) => c.videoId);
+    expect(ids).toEqual(['ok']); // 'short' (teaser) + 'long' both excluded
+  });
+
+  it('never returns empty: if everything is filtered, ranks the raw list', () => {
+    const list = [
+      mk('r1', 'Song REACTION', 'A'),
+      mk('r2', 'Song reaction part 2', 'B'),
+    ];
+    const out = rankMusicCandidates(list, 'Song');
+    expect(out.length).toBe(2); // filter would empty it → fall back to ranking all
+  });
+
+  it('keeps unknown-duration candidates (duration 0 is not filtered)', () => {
+    const list = [mk('x', 'Artist - Song (Official Video)', 'ArtistVEVO', 0)];
+    const out = rankMusicCandidates(list, 'Artist Song');
+    expect(out.map((c) => c.videoId)).toEqual(['x']);
   });
 });

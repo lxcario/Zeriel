@@ -268,15 +268,129 @@ async function searchPiped(query: string): Promise<MusicCandidate[] | null> {
 
 /**
  * Resolve search candidates for `query`: YouTube Data API first (if `apiKey`),
- * then Piped instances. Returns `[]` only when every method failed.
+ * then Piped instances. The raw list is ranked + filtered for music relevance
+ * ({@link rankMusicCandidates}) so reactions/interviews/loops/tutorials drop
+ * out and official tracks rise to the top. Returns `[]` only when every method
+ * failed.
  */
 export async function searchMusic(query: string, apiKey: string | undefined): Promise<MusicCandidate[]> {
   if (apiKey) {
     const viaApi = await searchYouTubeApi(query, apiKey);
-    if (viaApi && viaApi.length > 0) return viaApi;
+    if (viaApi && viaApi.length > 0) return rankMusicCandidates(viaApi, query);
   }
   const viaPiped = await searchPiped(query);
-  return viaPiped ?? [];
+  return viaPiped ? rankMusicCandidates(viaPiped, query) : [];
+}
+
+/**
+ * Title substrings that mark a result as NOT a normal playable song for a
+ * karaoke round — reactions, interviews, long loops, tutorials, etc. A
+ * candidate whose title contains one of these is excluded (unless excluding
+ * everything would leave no results — see {@link rankMusicCandidates}).
+ */
+const NON_MUSIC_PATTERNS: readonly RegExp[] = [
+  /\breaction\b/i,
+  /\binterview\b/i,
+  /\breview\b/i,
+  /\breacts?\b/i,
+  /\btutorial\b/i,
+  /\bhow to\b/i,
+  /\blesson\b/i,
+  /\bbehind the scenes\b/i,
+  /\bmaking of\b/i,
+  /\bdocumentar/i,
+  /\bpodcast\b/i,
+  /\bexplained\b/i,
+  /\bbreakdown\b/i,
+  /\b\d+\s*hours?\b/i, // "1 hour", "10 hours"
+  /\bloop(?:ed)?\b/i,
+  /\bfull album\b/i,
+  /\bcompilation\b/i,
+  /\bplaylist\b/i,
+  /\bmegamix\b/i,
+  /\bnon[- ]?stop\b/i,
+  /\bteaser\b/i,
+  /\btrailer\b/i,
+  /\bgameplay\b/i,
+  /\bkaraoke\b/i, // we want the real track, not a karaoke backing version
+  /\binstrumental\b/i,
+];
+
+/** Soft-penalty patterns: still a song, but a less ideal pick for a round. */
+const SOFT_PENALTY_PATTERNS: readonly RegExp[] = [
+  /\blive\b/i,
+  /\bcover\b/i,
+  /\bremix\b/i,
+  /\bsped ?up\b/i,
+  /\bslowed\b/i,
+  /\b8d audio\b/i,
+  /\bnightcore\b/i,
+  /\bmashup\b/i,
+  /\bacoustic\b/i,
+];
+
+/** Boost patterns marking an official, round-friendly track. */
+const OFFICIAL_PATTERNS: readonly RegExp[] = [
+  /\bofficial\b/i,
+  /\bofficial audio\b/i,
+  /\bofficial music video\b/i,
+  /\bofficial video\b/i,
+];
+
+/** Plausible song-length window (seconds): drop very short clips + very long videos. */
+const MIN_SONG_SEC = 45;
+const MAX_SONG_SEC = 11 * 60; // 11 minutes
+
+/**
+ * Rank and filter raw search candidates for music relevance.
+ *
+ * 1. HARD-exclude obvious non-music ({@link NON_MUSIC_PATTERNS}) and, when the
+ *    duration is known, anything outside the {@link MIN_SONG_SEC}..{@link MAX_SONG_SEC}
+ *    song-length window.
+ * 2. SCORE survivors by: official/VEVO boost, query token overlap (title +
+ *    artist), and soft penalties (live/cover/remix/…), with the original result
+ *    order as a stable tie-break.
+ * 3. Sort by score descending.
+ *
+ * Safety: if hard-exclusion would remove EVERY candidate (e.g. a deliberately
+ * odd query), the original list is ranked instead so the user still sees
+ * results rather than an empty list.
+ */
+export function rankMusicCandidates(candidates: MusicCandidate[], query: string): MusicCandidate[] {
+  const queryTokens = tokenSet(query);
+
+  const isPlayableSong = (c: MusicCandidate): boolean => {
+    const title = c.title ?? '';
+    if (NON_MUSIC_PATTERNS.some((re) => re.test(title))) return false;
+    if (c.durationSec > 0 && (c.durationSec < MIN_SONG_SEC || c.durationSec > MAX_SONG_SEC)) {
+      return false;
+    }
+    return true;
+  };
+
+  const kept = candidates.filter(isPlayableSong);
+  // Never strand the user with nothing: if the filter removed everything, rank
+  // the unfiltered list instead.
+  const pool = kept.length > 0 ? kept : candidates.slice();
+
+  const score = (c: MusicCandidate): number => {
+    const title = c.title ?? '';
+    const artist = c.artist ?? '';
+    let s = 0;
+    if (OFFICIAL_PATTERNS.some((re) => re.test(title))) s += 4;
+    if (/vevo$/i.test(artist)) s += 3; // VEVO channels are official uploads
+    // Query relevance (title weighted higher than artist).
+    s += overlap(queryTokens, tokenSet(title)) * 2;
+    s += overlap(queryTokens, tokenSet(artist));
+    if (SOFT_PENALTY_PATTERNS.some((re) => re.test(title))) s -= 3;
+    return s;
+  };
+
+  // Decorate-sort-undecorate with the original index as a STABLE tie-break.
+  return pool
+    .map((c, index) => ({ c, index, s: score(c) }))
+    .sort((a, b) => b.s - a.s || a.index - b.index)
+    .map(({ c }) => c);
 }
 
 // ---------------------------------------------------------------------------
