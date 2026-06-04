@@ -148,6 +148,19 @@ export interface RenderContainer {
 }
 
 /**
+ * A Solution_Slot target drawn as a faint gray "ghost" word, showing the player
+ * WHERE a word should go and WHICH word belongs there (Requirement 9.1 made
+ * visible). Purely a render hint derived from the line's solution slots + the
+ * correct token order; gameplay/scoring is unaffected.
+ */
+export interface SlotView {
+  /** Center position of the target slot (play-area coordinates). */
+  position: Vec2;
+  /** The correct word for this slot, drawn faint/gray as a placement guide. */
+  glyph: string;
+}
+
+/**
  * Everything {@link CanvasRenderer.draw} needs for one frame. Built by the host
  * from the two most recent authoritative/predicted physics snapshots.
  */
@@ -158,6 +171,8 @@ export interface RenderState {
   letters: readonly LetterView[];
   /** Optional neo-brutalist UI containers to outline (Requirement 12.5). */
   containers?: readonly RenderContainer[];
+  /** Optional gray ghost target words showing where letters should be placed. */
+  slots?: readonly SlotView[];
 }
 
 /**
@@ -228,6 +243,10 @@ const SCANLINE_COLOR = 'rgba(0,0,0,0.10)';
 const INK_COLOR = '#141210';
 const CUTOUT_FILL_COLOR = '#ffffff';
 const AUDIO_ACCENT_COLOR = '#e23b2e';
+/** Faint gray fill for ghost target words (placement guides). */
+const SLOT_GHOST_FILL = 'rgba(20,18,16,0.18)';
+/** Dashed outline for the ghost target box. */
+const SLOT_GHOST_STROKE = 'rgba(20,18,16,0.28)';
 
 // ---------------------------------------------------------------------------
 // Pure helpers — deterministic variation + bounded off-grid offset.
@@ -484,6 +503,14 @@ export class CanvasRenderer implements Renderer {
     // reduce-motion (Requirement 13.1). Gameplay motion is unaffected.
     const shake = this.reduceMotion ? 0 : (hashUnit(this.frame, 7) * 2 - 1) * DECORATIVE_SHAKE_PX;
 
+    // Gray ghost target words FIRST (under the letters) so players see where
+    // each word should be placed.
+    if (state.slots) {
+      for (const slot of state.slots) {
+        this.drawSlotGhost(ctx, slot);
+      }
+    }
+
     for (const letter of state.letters) {
       this.drawLetter(ctx, letter, a, shake);
     }
@@ -548,6 +575,30 @@ export class CanvasRenderer implements Renderer {
   // -------------------------------------------------------------------------
   // Frame drawing internals
   // -------------------------------------------------------------------------
+
+  /**
+   * Draw a faint gray "ghost" target word at a Solution_Slot, showing the player
+   * where (and which) word to place. Drawn UNDER the live letters so a placed
+   * letter visually covers its target. Purely decorative — no gameplay impact.
+   */
+  private drawSlotGhost(ctx: CanvasContextLike, slot: SlotView): void {
+    ctx.save();
+    ctx.translate(slot.position.x, slot.position.y);
+    ctx.font = `${BASE_FONT_PX}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const textWidth = ctx.measureText(slot.glyph).width;
+    const boxW = textWidth + GLYPH_BOX_PADDING_PX * 2;
+    const boxH = BASE_FONT_PX + GLYPH_BOX_PADDING_PX * 2;
+    // Faint outlined slot box (the empty "cut-out" the word belongs in).
+    ctx.strokeStyle = SLOT_GHOST_STROKE;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(-boxW / 2, -boxH / 2, boxW, boxH);
+    // The faint gray word itself.
+    ctx.fillStyle = SLOT_GHOST_FILL;
+    ctx.fillText(slot.glyph, 0, 0);
+    ctx.restore();
+  }
 
   /**
    * Draw one Rope_Letter as a ransom-note cut-out glyph at its alpha-interpolated

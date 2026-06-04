@@ -97,7 +97,7 @@ import type {
   Snapshot,
   LetterSnapshot,
 } from '@glitch/core';
-import type { Renderer, RenderState } from '../render/index.ts';
+import type { Renderer, RenderState, SlotView } from '../render/index.ts';
 import type { AudioPlayer, AudioFrame } from '../audio/AudioPlayer.ts';
 import { NetClient, type NetSocket, type NetClientCallbacks } from '../net/index.ts';
 import type { GameHost, GameHostMode } from './GameHost.ts';
@@ -236,7 +236,11 @@ export class RemoteGameHost implements GameHost {
   /** Reused list of letter views for the current {@link RenderState}. */
   private readonly letterViews: MutableLetterView[] = [];
   /** Reused render-state object handed to `renderer.draw` each frame. */
-  private readonly renderState: { bounds: Rect; letters: MutableLetterView[] };
+  private readonly renderState: { bounds: Rect; letters: MutableLetterView[]; slots: SlotView[] };
+  /** Reused list of ghost slot views for the active line. */
+  private readonly slotViews: SlotView[] = [];
+  /** The line id whose words are currently in play (drives ghost targets). */
+  private activeLineId: string | null = null;
 
   // --- Authoritative snapshot interpolation state (non-owned letters) ---
   // Only the two most recent snapshots' arrival times and per-id letter lookups
@@ -300,11 +304,18 @@ export class RemoteGameHost implements GameHost {
 
     // Spawn lines into the prediction core off the playback clock, exactly as
     // the local host — so every letter exists locally for snapshots to reconcile.
+    // Clear the previous line when a new one drops so the play area shows only
+    // the current line + its ghost targets (matches the authoritative server).
     this.scheduler = new LyricScheduler(config.lines, (line) => {
+      const prev = this.activeLineId;
+      if (prev !== null && prev !== line.id) {
+        this.gameCore.clearLine(prev);
+      }
       this.gameCore.spawnLine(line);
+      this.activeLineId = line.id;
     });
 
-    this.renderState = { bounds: this.bounds, letters: this.letterViews };
+    this.renderState = { bounds: this.bounds, letters: this.letterViews, slots: this.slotViews };
   }
 
   // -------------------------------------------------------------------------
@@ -649,6 +660,30 @@ export class RemoteGameHost implements GameHost {
 
     this.renderState.bounds = this.bounds;
     this.renderState.letters = this.letterViews;
+    this.buildSlotViews();
+    this.renderState.slots = this.slotViews;
     return this.renderState as RenderState;
+  }
+
+  /**
+   * Rebuild gray ghost target views for the ACTIVE line from the prediction
+   * core's Solution_Slots + correct token glyphs (placement guides only).
+   */
+  private buildSlotViews(): void {
+    this.slotViews.length = 0;
+    const lineId = this.activeLineId;
+    if (lineId === null) return;
+    const slots = this.gameCore.getSolutionSlots(lineId);
+    if (!slots) return;
+    for (const slot of slots) {
+      let glyph = '';
+      for (const letter of this.gameCore.letters) {
+        if (letter.lineId === lineId && letter.correctIndex === slot.index) {
+          glyph = letter.glyph;
+          break;
+        }
+      }
+      this.slotViews.push({ position: { x: slot.position.x, y: slot.position.y }, glyph });
+    }
   }
 }

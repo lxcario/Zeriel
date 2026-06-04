@@ -19,6 +19,7 @@ export {
   type Renderer,
   type RenderState,
   type LetterView,
+  type SlotView,
   type RenderContainer,
   type CanvasContextLike,
   type CanvasImageSourceLike,

@@ -63,7 +63,7 @@ import type {
   InputOutcome,
   RenderOptions,
 } from '@glitch/core';
-import type { Renderer, RenderState, LetterView } from '../render/index.ts';
+import type { Renderer, RenderState, LetterView, SlotView } from '../render/index.ts';
 import type { AudioPlayer, AudioFrame } from '../audio/AudioPlayer.ts';
 import type { GameHost, GameHostMode } from './GameHost.ts';
 import {
@@ -191,13 +191,22 @@ export class LocalGameHost implements GameHost {
   private readonly droppedLineIds: string[] = [];
   /** Playback time (ms) at which the most recent line dropped. */
   private lastDropMs = 0;
+  /**
+   * The line id whose words are currently in play. When a new line drops, the
+   * previous line is finalized + cleared so the play area shows only the current
+   * line (matching the "before the next line drops" rule), and its gray ghost
+   * targets are the placement guides for that line.
+   */
+  private activeLineId: string | null = null;
 
   /** Per-letter interpolation buffers, keyed by letter id. */
   private readonly buffers = new Map<string, LetterFrameBuffer>();
   /** Reused list of letter views for the current {@link RenderState}. */
   private readonly letterViews: MutableLetterView[] = [];
+  /** Reused list of ghost slot views for the active line. */
+  private readonly slotViews: SlotView[] = [];
   /** Reused render-state object handed to `renderer.draw` each frame. */
-  private readonly renderState: { bounds: Rect; letters: MutableLetterView[] };
+  private readonly renderState: { bounds: Rect; letters: MutableLetterView[]; slots: SlotView[] };
 
   /** Leftover fixed-timestep accumulator carried between frames (ms). */
   private accumulatorMs = 0;
@@ -239,12 +248,21 @@ export class LocalGameHost implements GameHost {
 
     // The scheduler feeds dropped lines into GameCore.spawnLine, recording each
     // line id so every open line can be finalized at scoring (Requirement 9.4).
+    // When a NEW line drops, the PREVIOUS line is finalized (its score frozen)
+    // and cleared from play so only the current line's words + ghost targets are
+    // on screen ("...before the next line drops").
     this.scheduler = new LyricScheduler(config.lines, (line) => {
+      const prev = this.activeLineId;
+      if (prev !== null && prev !== line.id) {
+        this.gameCore.finalizeLine(prev);
+        this.gameCore.clearLine(prev);
+      }
       this.gameCore.spawnLine(line);
       this.droppedLineIds.push(line.id);
+      this.activeLineId = line.id;
     });
 
-    this.renderState = { bounds: this.bounds, letters: this.letterViews };
+    this.renderState = { bounds: this.bounds, letters: this.letterViews, slots: this.slotViews };
   }
 
   // -------------------------------------------------------------------------
@@ -505,8 +523,36 @@ export class LocalGameHost implements GameHost {
       view.previous = buf.hasPrevious ? buf.previous : undefined;
       this.letterViews.push(view);
     }
+    this.buildSlotViews();
     this.renderState.bounds = this.bounds;
     this.renderState.letters = this.letterViews;
+    this.renderState.slots = this.slotViews;
     return this.renderState as RenderState;
+  }
+
+  /**
+   * Rebuild the gray ghost target views for the ACTIVE line: one per
+   * Solution_Slot, positioned at the slot and labeled with the word whose
+   * `correctIndex` matches that slot. These are placement guides only (no
+   * gameplay effect). Reuses {@link slotViews} (no per-frame allocation in
+   * steady state). Empty when no line is active or its slots are unknown.
+   */
+  private buildSlotViews(): void {
+    this.slotViews.length = 0;
+    const lineId = this.activeLineId;
+    if (lineId === null) return;
+    const slots = this.gameCore.getSolutionSlots(lineId);
+    if (!slots) return;
+    // Map correctIndex -> glyph for the active line's letters.
+    for (const slot of slots) {
+      let glyph = '';
+      for (const letter of this.gameCore.letters) {
+        if (letter.lineId === lineId && letter.correctIndex === slot.index) {
+          glyph = letter.glyph;
+          break;
+        }
+      }
+      this.slotViews.push({ position: { x: slot.position.x, y: slot.position.y }, glyph });
+    }
   }
 }

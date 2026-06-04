@@ -751,6 +751,43 @@ export class GameCore implements GameCoreContract {
   }
 
   /**
+   * Remove every live Rope_Letter belonging to `lineId` from play, clearing the
+   * heap so the next line has room (gameplay quality — without this every line's
+   * letters accumulate forever and the play area becomes an unreadable pile).
+   *
+   * This does NOT touch scoring: the line's {@link LineScore} (provisional or
+   * finalized) and any accumulated per-Player contributions are retained, so
+   * clearing a line after it is finalized preserves the Round total. The
+   * recommended sequence when a new line drops is `finalizeLine(prev)` then
+   * `clearLine(prev)` so the just-closed line is scored before its letters are
+   * removed.
+   *
+   * Removes the line's letters from {@link _letters} and {@link lettersById},
+   * drops any pinned-grabbed-node bookkeeping for them (so a held letter that is
+   * cleared cannot leave a dangling pin), and forgets their Solution_Slots. Safe
+   * to call for an unknown/already-cleared line (no-op). Pure and deterministic.
+   */
+  clearLine(lineId: string): void {
+    if (this._letters.length === 0) return;
+    const kept: RopeLetter[] = [];
+    for (const letter of this._letters) {
+      if (letter.lineId === lineId) {
+        // Drop per-letter bookkeeping so nothing dangles after removal.
+        this.lettersById.delete(letter.id);
+        this.grabbedNodeByLetter.delete(letter.id);
+        // lastOwnerByLetter is intentionally retained: contributions are already
+        // credited at finalize and keying is harmless once the letter is gone.
+      } else {
+        kept.push(letter);
+      }
+    }
+    // Replace contents in place (the `letters` getter returns this same array).
+    this._letters.length = 0;
+    for (let i = 0; i < kept.length; i++) this._letters.push(kept[i]!);
+    this.solutionSlotsByLine.delete(lineId);
+  }
+
+  /**
    * Steer every held letter's pinned grabbed node to its owner's latest cursor
    * (Requirement 8.3 — design.md tick step 2). Decision: SNAP (not a fractional
    * lerp). Because the grabbed node is pinned (`invMass=0`), integration and the
